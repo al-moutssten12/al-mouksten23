@@ -12,9 +12,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
 
 
-
-
-
 <style>
 :root{
   /* ===== ألوان أساسية ===== */
@@ -1238,6 +1235,19 @@ document.body.appendChild(printBtn);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function printKitchenCard(docOrK) {
   let k = docOrK;
   try {
@@ -1251,7 +1261,7 @@ async function printKitchenCard(docOrK) {
     }
   } catch (err) {
     console.error('خطأ في جلب البيانات للطباعة:', err);
-    alert('فشل جلب بيانات الطباعة (راجع Console)');
+    alert('فشل جلب بيانات الطباعة');
     return;
   }
 
@@ -1262,8 +1272,9 @@ async function printKitchenCard(docOrK) {
     return null;
   };
 
-  const possibleGlobalKeys = ['woodType', 'wood', 'woodName', 'selectedWood', 'selectedWoodName', 'globalWood'];
+  const possibleGlobalKeys = ['woodType','wood','woodName','selectedWood','selectedWoodName','globalWood'];
   let globalWood = null;
+
   for (const key of possibleGlobalKeys) {
     if (k[key]) {
       globalWood = getWoodName(k[key]);
@@ -1271,159 +1282,194 @@ async function printKitchenCard(docOrK) {
     }
   }
 
-  const floors = Array.isArray(k.floors) ? k.floors.map(f => {
-    const floorWood = getWoodName(f.woodType) || getWoodName(f.wood) || globalWood || 'غير محدد';
-    return { ...f, _woodName: floorWood };
-  }) : [];
+  const floors = Array.isArray(k.floors)
+    ? k.floors.map(f => {
+        const floorWood =
+          getWoodName(f.woodType) ||
+          getWoodName(f.wood) ||
+          globalWood ||
+          'غير محدد';
+        return { ...f, _woodName: floorWood };
+      })
+    : [];
 
-  const printContainer = document.createElement('div');
-  printContainer.style.position = 'fixed';
-  printContainer.style.left = '-10000px';
+  function buildPage(showPrice) {
 
-  printContainer.innerHTML = `
-  <div style="
-    direction:rtl;
-    font-family:Arial, sans-serif;
-    width:210mm;
-    min-height:297mm;
-    padding:20mm;
-    box-sizing:border-box;
-    position:relative;
-  ">
-    <!-- الهيدر -->
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:4px solid gold; padding-bottom:10px;">
-      <div style="font-size:14px; line-height:1.8; text-align:left;">
-        <div>📞 07802255624</div>
-        <div>📞 0782888690</div>
-      </div>
-      <div style="text-align:center; flex:1;">
-        <div style="font-size:30px; font-weight:bold;">
-          شركة <span style="font-size:44px; font-weight:900; color:#D4AF37;">المقسطين </span>
-          للديكور والتجارة العامة
-        </div>
-        <div style="font-size:14px; margin-top:6px; color:#555;">
-          مطابخ تركية - اكسسوارات - خشب - ألواح فوم - إنارة كهربائيات - جميع أنواع العدد - بديل الخام - بديل الخشب - واجهات فوم - جبس بورد - تصميم - تنفيذ - إشراف
-        </div>
-        <div style="height:4px; background:gold; margin-top:8px;"></div>
-        <div style="margin-top:6px; font-size:14px;">
-          📍 النجف الأشرف - خدمي العدالة مقابل المدينة المائية - بعد شارع المستوصف
-        </div>
-      </div>
-    </div>
+    const totalLine = showPrice
+      ? (k.totalAmount ? Number(k.totalAmount).toLocaleString() + ' د.ع' : (k.totalText || '-'))
+      : '—';
 
-    <!-- معلومات الزبون -->
-    <div style="margin-top:20px; font-size:14px;">
-      <div><b>اسم الزبون:</b> ${k.clientName || '-'}</div>
-      <div><b>رقم الهاتف:</b> ${k.clientPhone || '-'}</div>
-    </div>
+    return `
+<div style="direction:rtl;font-family:Arial;width:210mm;min-height:297mm;padding:20mm;box-sizing:border-box;position:relative;">
 
-    <!-- نوع الخشب لكل طابق -->
-    ${floors.length ? `
-      <div style="margin-top:15px; font-size:14px;">
-        <b>نوع الخشب   :</b>
-        <ul>
-          ${floors.map(f => `<li>${f.name || '-'} : ${f._woodName}</li>`).join('')}
-        </ul>
-      </div>
-    ` : ''}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:4px solid gold; padding-bottom:10px;">
+<div style="font-size:14px; line-height:1.8; text-align:left;">
+<div>📞 07802255624</div>
+<div>📞 07833404610</div>
+</div>
 
-    <!-- جدول الطوابق -->
-    ${floors.length ? `
-      <table style="width:100%; border-collapse:collapse; margin-top:10px;">
-        <thead style="background:gold; color:#fff;">
-          <tr>
-            <th style="border:1px solid #ccc; padding:8px;">عدد الطوابق </th>
-            <th style="border:1px solid #ccc; padding:8px;">نوع الخشب</th>
-            <th style="border:1px solid #ccc; padding:8px;">L (م)</th>
-            <th style="border:1px solid #ccc; padding:8px;">W (م)</th>
-            <th style="border:1px solid #ccc; padding:8px;">H (م)</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${floors.map(f => `
-            <tr style="text-align:center;">
-              <td style="border:1px solid #ccc;">${f.name || '-'}</td>
-              <td style="border:1px solid #ccc; font-weight:bold;">${f._woodName}</td>
-              <td style="border:1px solid #ccc;">${f.L || '-'} م</td>
-              <td style="border:1px solid #ccc;">${f.W || '-'} م</td>
-              <td style="border:1px solid #ccc;">${f.H || '-'} م</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    ` : ''}
+<div style="text-align:center; flex:1;">
+<div style="font-size:30px; font-weight:bold;">
+شركة <span style="font-size:44px; font-weight:900; color:#D4AF37;">المقسطين</span>
+للديكور والمطابخ الحديثة
+</div>
 
-    ${k.extras?.length ? `
-      <h3 style="margin-top:20px; color:#D4AF37;">الإضافات</h3>
-      <ul>${k.extras.map(e => `<li>${e.name} : ${e.value} م</li>`).join('')}</ul>
-    ` : ''}
+<div style="font-size:14px; margin-top:6px; color:#555;">
+مطابخ تركية - اكسسوارات - خشب - ألواح فوم - إنارة كهربائيات - جميع أنواع العدد
+</div>
 
-    ${k.materials?.length ? `
-      <h3 style="margin-top:15px; color:#D4AF37;">المتيريل</h3>
-      <ul>${k.materials.map(m => `<li>${m.name} × ${m.qty}</li>`).join('')}</ul>
-    ` : ''}
+<div style="height:4px; background:gold; margin-top:8px;"></div>
 
-    <!-- المجموع -->
-    <div style="margin-top:20px; font-size:16px; font-weight:bold;">
-      المجموع: ${k.totalAmount ? Number(k.totalAmount).toLocaleString() + ' د.ع' : (k.totalText || '-')}
-    </div>
+<div style="margin-top:6px; font-size:14px;">
+📍 النجف الأشرف - حي العدالة - مقابل المدينة المائية
+</div>
+</div>
+</div>
+
+<div style="margin-top:20px; font-size:14px;">
+<div><b>اسم الزبون:</b> ${k.clientName || '-'}</div>
+<div><b>رقم الهاتف:</b> ${k.clientPhone || '-'}</div>
+</div>
+
+${floors.length ? `
+<div style="margin-top:15px;font-size:14px;">
+<b>نوع الخشب :</b>
+<ul>
+${floors.map(f=>`<li>${f.name||'-'} : ${f._woodName}</li>`).join('')}
+</ul>
+</div>`:''}
+
+${floors.length ? `
+<table style="width:100%;border-collapse:collapse;margin-top:10px;">
+<thead style="background:gold;color:#fff;">
+<tr>
+<th style="border:1px solid #ccc;padding:8px;">عدد الطوابق</th>
+<th style="border:1px solid #ccc;padding:8px;">نوع الخشب</th>
+<th style="border:1px solid #ccc;padding:8px;">L</th>
+<th style="border:1px solid #ccc;padding:8px;">W</th>
+<th style="border:1px solid #ccc;padding:8px;">H</th>
+</tr>
+</thead>
+<tbody>
+
+${floors.map(f=>`
+<tr style="text-align:center;">
+<td style="border:1px solid #ccc;">${f.name||'-'}</td>
+<td style="border:1px solid #ccc;font-weight:bold;">${f._woodName}</td>
+<td style="border:1px solid #ccc;">${f.L||'-'} م</td>
+<td style="border:1px solid #ccc;">${f.W||'-'} م</td>
+<td style="border:1px solid #ccc;">${f.H||'-'} م</td>
+</tr>
+`).join('')}
+
+</tbody>
+</table>
+`:''}
+
+<div style="display:flex; justify-content:space-between; gap:40px; margin-top:20px;">
+
+${k.extras?.length ? `
+<div style="width:50%;">
+<h3 style="color:#D4AF37;">الإضافات</h3>
+<ul>
+${k.extras.map(e => `<li>${e.name} : ${e.value} م</li>`).join('')}
+</ul>
+</div>
+` : '<div style="width:50%;"></div>'}
+
+${k.materials?.length ? `
+<div style="width:50%;">
+<h3 style="color:#D4AF37;">الأكسسوارات</h3>
+<ul>
+${k.materials.map(m => `
+<li>
+${m.name} × ${m.qty}
+${showPrice && m.price ? ' — ' + Number(m.price).toLocaleString() + ' د.ع' : ''}
+</li>
+`).join('')}
+</ul>
+</div>
+` : ''}
+
+</div>
+
+<div style="margin-top:20px;font-size:16px;font-weight:bold;">
+المجموع: ${totalLine}
+</div>
+
 <br>
-    <!-- ملاحظات الزبون تحت المجموع -->
-    <div style="margin-top:10px; font-size:14px; font-weight:bold; color:#D35400;">
-      ملاحظات :<hr> ${k.notes || '-'}
-      
-    </div>
 
-    <!-- البائع والمشتري -->
-    <div style="
-      position:absolute;
-      bottom:38mm;
-      left:20mm;
-      right:20mm;
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      font-size:13px;
-      gap:20px;
-    ">
-      <div style="text-align:right;">
-        <div style="color:#333; font-size:24; font-weight:600;">البائع</div>
-        <div style="margin-top:4px;  font-size:24; font-weight:700; color:#000;">شركة المقسطين</div>
-      </div>
-      <div style="text-align:left;">
-        <div style="color:#333; font-size:24; font-weight:600;">المشتري</div>
-        <div style="margin-top:4px; font-size:24; font-weight:700; color:#000;">${k.clientName || '-'}</div>
-      </div>
-    </div>
+<div style="margin-top:10px;font-size:14px;font-weight:bold;color:#D35400;">
+ملاحظات :<hr> ${k.notes || '-'}
+</div>
 
-    <!-- ملاحظة ثابتة أسفل الصفحة -->
-    <div style="
-      position:absolute;
-      bottom:15mm;
-      left:20mm;
-      right:20mm;
-      text-align:center;
-      font-size:12px;
-      font-weight:bold;
-      color:red;
-      border-top:2px solid gold;
-      padding-top:8px;
-    ">
-      ملاحظة: يتم تسليم المبلغ كاملاً قبل التنصيب، وبخلافه يسقط حق المطالبة بالتنصيب
-    </div>
 
+<div style="position:absolute;bottom:38mm;left:20mm;right:20mm;display:flex;justify-content:space-between;">
+<div style="text-align:center;">
+  <div style="color:#333; font-weight:600; font-size:20px;">البائع</div>
+  <div style="margin-top:6px; font-weight:700; color:#000; font-size:24px;">
+    شركة المقسطين
   </div>
+</div>
+
+<div style="text-align:center;">
+  <div style="color:#333; font-weight:600; font-size:20px;">المشتري</div>
+  <div style="margin-top:6px; font-weight:700; color:#000; font-size:24px;">
+    ${k.clientName || '-'}
+  </div>
+</div>
+
+<div style="position:absolute;bottom:15mm;left:20mm;right:20mm;text-align:center;font-size:12px;font-weight:bold;color:red;border-top:2px solid gold;padding-top:8px;">
+ملاحظة: يتم تسليم المبلغ كاملاً قبل التنصيب
+</div>
+
+</div>
+`;
+  }
+
+  const html = `
+  <html>
+  <head>
+  <meta charset="utf-8">
+  <style>
+  body{margin:0}
+  .page{page-break-after:always}
+  </style>
+  </head>
+
+  <body>
+
+  <div class="page">
+  ${buildPage(false)}
+  </div>
+
+  <div class="page">
+  ${buildPage(true)}
+  </div>
+
+  </body>
+  </html>
   `;
 
-  document.body.appendChild(printContainer);
   const w = window.open('', '_blank', 'width=900,height=1200');
-  w.document.write(printContainer.innerHTML);
+
+  w.document.write(html);
   w.document.close();
-  w.focus();
-  w.print();
-  w.close();
-  document.body.removeChild(printContainer);
+
+  setTimeout(()=>{
+    w.print();
+    w.close();
+  },500);
 }
+
+
+
+
+
+
+
+
+
 
 
 
