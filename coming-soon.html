@@ -935,6 +935,14 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, .modal::-webkit-scrollbar { di
         <input id="m_createdAt" disabled>
       </div>
 
+
+<div class="form-group">
+  <label for="m_discount">الخصم</label>
+  <input type="number" id="m_discount" placeholder="أدخل قيمة الخصم  ">
+</div>
+
+
+
  <div style="grid-column:1 / -1;">
         <label for="m_notes">ملاحظات</label>
         <textarea id="m_notes" placeholder="ملاحظات"></textarea>
@@ -1034,6 +1042,7 @@ const m_createdAt = document.getElementById('m_createdAt');
 const floorsList_readonly = document.getElementById('floorsList_readonly');
 const extrasList_readonly = document.getElementById('extrasList_readonly');
 const materialsList_readonly = document.getElementById('materialsList_readonly');
+const m_discount = document.getElementById('m_discount');
 // image UI
 const imagesGrid = document.getElementById('imagesGrid');
 const imageInput = document.getElementById('imageInput');
@@ -1046,6 +1055,8 @@ const editInKitchens = document.getElementById('editInKitchens');
 
 let currentId = null;
 let lastSnapshot = null;
+let lastItems = []; // ← مصفوفة الكائنات الجاهزة (كل مطبخ ككائن يتضمن woods)
+
 
 window.addEventListener("scroll", () => {
   const scroll = window.scrollY;
@@ -1092,14 +1103,34 @@ function buildCard(docId, k){
   const meta = el('p',{class:'meta'}, metaText.join(' • '));
   leftDiv.append(title, phone, note, meta);
 
-  const priceText =
-    (k.totalAmount && Number(k.totalAmount) > 0)
-      ? (Number(k.totalAmount).toLocaleString() + ' د.ع')
-      : (k.totalText || '-');
+   // ===== حساب السعر بعد الخصم وعرض الأصلي إذا وُجد خصم =====
+  const totalAmountNum = Number(k.totalAmount || 0);
+  const discountNum = Number(k.discount || 0);
+  const finalAmount = Math.max(0, totalAmountNum - discountNum);
 
-  const priceEl = el('p',{class:'meta price'}, priceText);
+  let priceHtml = '-';
+
+  if (totalAmountNum > 0) {
+    if (discountNum > 0) {
+      // عرض السعر الأصلي مخطوطًا ثم السعر بعد الخصم بارز
+      priceHtml = `
+        <span class="orig-price" style="text-decoration:line-through;opacity:0.7;margin-right:8px;">
+          ${totalAmountNum.toLocaleString()} د.ع
+        </span>
+        <span class="discounted-price" style="font-weight:700;color:#D35400;">
+          ${finalAmount.toLocaleString()} د.ع
+        </span>
+      `;
+    } else {
+      priceHtml = `${totalAmountNum.toLocaleString()} د.ع`;
+    }
+  } else {
+    priceHtml = k.totalText || '-';
+  }
+
+  // استخدم خاصية html لعنصر el حتى ندخل HTML داخلي (خط اصلي + سعر بعد الخصم)
+  const priceEl = el('p', { class: 'meta price', html: priceHtml });
   leftDiv.appendChild(priceEl);
-
   const rightDiv = el('div',{
     style:'display:flex;flex-direction:column;align-items:flex-end;gap:8px'
   });
@@ -1247,7 +1278,6 @@ document.body.appendChild(printBtn);
 
 
 
-
 async function printKitchenCard(docOrK) {
   let k = docOrK;
   try {
@@ -1294,10 +1324,36 @@ async function printKitchenCard(docOrK) {
     : [];
 
   function buildPage(showPrice) {
+    // حسابات السعر والخصم
+    const totalAmountNum = Number(k.totalAmount || 0);
+    const discountNum = Number(k.discount || 0);
+    const finalTotal = Math.max(0, totalAmountNum - discountNum);
 
-    const totalLine = showPrice
-      ? (k.totalAmount ? Number(k.totalAmount).toLocaleString() + ' د.ع' : (k.totalText || '-'))
-      : '—';
+    // خط العرض للسعر — إذا showPrice === true نعرض السعرين (الأصلي مخطوط + بعد الخصم بارز)
+    let totalHtml;
+    if (showPrice) {
+      if (totalAmountNum > 0) {
+        if (discountNum > 0) {
+          totalHtml = `
+            <div>
+              <span style="text-decoration:line-through;color:#c0392b;font-style:italic;margin-right:8px;">
+                ${totalAmountNum.toLocaleString()} د.ع
+              </span>
+              <span style="font-weight:800;color:#D35400;">
+                ${finalTotal.toLocaleString()} د.ع
+              </span>
+              <div style="font-size:12px;color:#555;margin-top:4px;">(الخصم: ${discountNum.toLocaleString()} د.ع)</div>
+            </div>
+          `;
+        } else {
+          totalHtml = `<div style="font-weight:800;">${totalAmountNum.toLocaleString()} د.ع</div>`;
+        }
+      } else {
+        totalHtml = `<div>${k.totalText || '—'}</div>`;
+      }
+    } else {
+      totalHtml = '—';
+    }
 
     return `
 <div style="direction:rtl;font-family:Arial;width:210mm;min-height:297mm;padding:20mm;box-sizing:border-box;position:relative;">
@@ -1337,7 +1393,7 @@ ${floors.length ? `
 <ul>
 ${floors.map(f=>`<li>${f.name||'-'} : ${f._woodName}</li>`).join('')}
 </ul>
-</div>`:''}
+</div>` : ''}
 
 ${floors.length ? `
 <table style="width:100%;border-collapse:collapse;margin-top:10px;">
@@ -1364,7 +1420,7 @@ ${floors.map(f=>`
 
 </tbody>
 </table>
-`:''}
+` : ''}
 
 <div style="display:flex; justify-content:space-between; gap:40px; margin-top:20px;">
 
@@ -1394,7 +1450,7 @@ ${showPrice && m.price ? ' — ' + Number(m.price).toLocaleString() + ' د.ع' :
 </div>
 
 <div style="margin-top:20px;font-size:16px;font-weight:bold;">
-المجموع: ${totalLine}
+المجموع: ${totalHtml}
 </div>
 
 <br>
@@ -1540,50 +1596,11 @@ ${showPrice && m.price ? ' — ' + Number(m.price).toLocaleString() + ' د.ع' :
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function renderReadonlyList(container, list, type){
+// --------- استبدل دالة renderReadonlyList بها تماماً ----------
+function renderReadonlyList(container, list, type, kitchenWoods = []) {
   container.innerHTML = '';
 
-  if(!Array.isArray(list) || list.length === 0){
+  if (!Array.isArray(list) || list.length === 0) {
     container.textContent = '—';
     return;
   }
@@ -1591,29 +1608,49 @@ function renderReadonlyList(container, list, type){
   list.forEach(item => {
     const div = document.createElement('div');
 
-    if(type === 'floors'){
+    if (type === 'floors') {
+      // 1) أولوية: اسم الخشب المعد مسبقاً (_woodName) ثم حقول الطابق مباشرة
+      let woodName = item._woodName || item.woodType || item.woodName || item.wood || 'غير محدد';
+
+      // 2) إن بقي "غير محدد" → حاول إيجاد الخشب من kitchenWoods عبر مفتاح prices[item.id]
+      if ((woodName === 'غير محدد' || !woodName) && Array.isArray(kitchenWoods) && kitchenWoods.length) {
+        for (const w of kitchenWoods) {
+          if (!w) continue;
+          const prices = w.prices || w.price || w.pricesMap || null;
+          // prices يجب أن يكون كائن يحتوي مفاتيح الطوابق (مثلاً: { f1769...: 400000 })
+          if (prices && typeof prices === 'object' && Object.prototype.hasOwnProperty.call(prices, item.id)) {
+            woodName = w.name || w.woodName || w.label || woodName;
+            break;
+          }
+        }
+      }
+
       div.innerHTML = `
         <strong>${item.name || '-'}</strong>
         <br>
-         : <b>${item.woodType ?? '  '}</b>
+        الخشب: <b>${woodName}</b>
         <br>
         L: ${item.L ?? '-'} م
         &nbsp; W: ${item.W ?? '-'} م
         &nbsp; H: ${item.H ?? '-'} م
       `;
     }
-
-    else if(type === 'extras'){
-      div.textContent = `${item.name || '-'}: ${item.value || '-'}`;
+    else if (type === 'extras') {
+      const val = item.value ?? item.price ?? '-';
+      div.textContent = `${item.name || '-'}: ${val}`;
     }
-
-    else if(type === 'materials'){
-      div.textContent = `${item.name || '-'} × ${item.qty || '-'}`;
+    else if (type === 'materials') {
+      const qty = item.qty ?? item.quantity ?? '-';
+      const price = item.price ? ` — ${Number(item.price).toLocaleString()} د.ع` : '';
+      div.textContent = `${item.name || '-'} × ${qty}${price}`;
     }
 
     container.appendChild(div);
   });
 }
+
+
+
 
 
 
@@ -1623,7 +1660,18 @@ const qKitchens = query(kitchensCol);
 
 function renderSnapshot(snapshot){
   lastSnapshot = snapshot;
-  const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // نهيئ مصفوفة العناصر بحيث كل عنصر يضمن وجود حقل woods
+  const docs = snapshot.docs.map(d => {
+    const data = d.data() || {};
+    // تأكد أن الخاصية woods موجودة كمصفوفة
+    const woodsArray = Array.isArray(data.woods) ? data.woods : [];
+    return { id: d.id, ...data, woods: woodsArray };
+  });
+
+  // خزّنها للاستعلامات اللاحقة (بحث/فلتر/تحديث)
+  lastItems = docs;
+
   applyClientFilterAndRender(docs);
 }
 
@@ -1722,24 +1770,62 @@ async function openModal(id, k){
   m_notes.value       = k.notes || '';
   m_status.value      = k.status || 'غير متفق عليه';
   m_createdAt.value   = k.createdAt
-    ? new Date(k.createdAt.seconds * 1000).toLocaleString('ar-IQ')
+  
+    ? new Date(k.createdAt.seconds ? k.createdAt.seconds * 1000 : k.createdAt).toLocaleString('ar-IQ')
     : '';
-
-  // تأكد أن الطوابق مصفوفة
-  const floors = Array.isArray(k.floors) ? k.floors : [];
+m_discount.value = k.discount || 0;
+  // طوابق وإضافات ومواد
+  const floors = Array.isArray(k.floors) ? k.floors.map(f => ({ ...f })) : []; // clone لحماية الاصل
   const extras = Array.isArray(k.extras) ? k.extras : [];
   const materials = Array.isArray(k.materials) ? k.materials : [];
 
-  // 🔥 لا تغيّر woodType هنا
-  renderReadonlyList(floorsList_readonly, floors, 'floors');
-  renderReadonlyList(extrasList_readonly, extras, 'extras');
-  renderReadonlyList(materialsList_readonly, materials, 'materials');
+  // نفس دالة الاستخراج المستخدمة في الطباعة
+  const getWoodName = (w) => {
+    if (!w && w !== 0) return null;
+    if (typeof w === 'string') return w;
+    if (typeof w === 'object' && w !== null) return w.name || w.displayName || w.label || null;
+    return null;
+  };
+
+  // possible global keys (لو تم تخزين نوع الخشب مباشرة في مستند المطبخ)
+  const possibleGlobalKeys = ['woodType','wood','woodName','selectedWood','selectedWoodName','globalWood'];
+
+  let globalWood = null;
+  for (const key of possibleGlobalKeys) {
+    if (k[key]) {
+      globalWood = getWoodName(k[key]);
+      if (globalWood) break;
+    }
+  }
+
+  // kitchenWoods من داخل نفس مستند المطبخ (هي مصفوفة تحتوي عناصر الخشب مع prices)
+  const kitchenWoods = Array.isArray(k.woods) ? k.woods : [];
+
+  // احسب _woodName لكل طابق: أولوية -> الطابق نفسه -> البحث في kitchenWoods عبر prices[item.id] -> globalWood -> غير محدد
+  floors.forEach(f => {
+    let name = f.woodType ?? f.woodName ?? f.wood ?? null;
+
+    if (!name) {
+      for (const w of kitchenWoods) {
+        if (!w) continue;
+        const prices = w.prices || w.price || null;
+        if (prices && typeof prices === 'object' && Object.prototype.hasOwnProperty.call(prices, f.id)) {
+          name = w.name || w.woodName || null;
+          break;
+        }
+      }
+    }
+
+    f._woodName = name || globalWood || 'غير محدد';
+  });
+
+  // مرّر المصفوفة المعدّلة + kitchenWoods إلى دالة العرض
+  renderReadonlyList(floorsList_readonly, floors, 'floors', kitchenWoods);
+  renderReadonlyList(extrasList_readonly, extras, 'extras', kitchenWoods);
+  renderReadonlyList(materialsList_readonly, materials, 'materials', kitchenWoods);
 
   detailsModal.classList.add('show');
 }
-
-
-
 if (closeModal) closeModal.addEventListener('click', ()=>{ detailsModal.classList.remove('show'); detailsModal.setAttribute('aria-hidden','true'); });
   window.addEventListener('scroll', function() {
   const scrollTop = window.scrollY;
@@ -1751,13 +1837,19 @@ if (closeModal) closeModal.addEventListener('click', ()=>{ detailsModal.classLis
 // Save edits (clientName, phone, notes, status)
 if (saveModal) saveModal.addEventListener('click', async ()=>{
   if(!currentId) return alert('لا يوجد مطبخ محدد للحفظ');
+
  const updates = {
   clientName: m_clientName.value || '',
   clientPhone: m_clientPhone.value || '',
   colorCode: m_colorCode.value || '',
   notes: m_notes.value || '',
-  status: m_status.value || ''
+  status: m_status.value || '',
+  discount: Number(m_discount.value) || 0
 };
+
+
+
+
 
   try{
     await updateDoc(doc(db,'kitchens',currentId), updates);
